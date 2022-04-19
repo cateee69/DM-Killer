@@ -19,7 +19,7 @@ id_counter = 0
 dm_success = 0
 dm_failed = 0
 tokens_left = len(tokens)
-threads_list = list()
+threads_list = []
 initial_title = f"DM-KILLER v{version} | Starting.."
 
 settings = open('config.json')
@@ -92,12 +92,10 @@ def send_dm(token_counter):
 
 	def request_fingerprint():
 		response2 = requests.get("https://discordapp.com/api/v9/experiments", headers=headers_reg, proxies=proxies, timeout=20).json()
-		fingerprint = response2["fingerprint"]
-		return fingerprint
+		return response2["fingerprint"]
 
 	def request_snowflake():
-		snakeflow = discord.utils.time_snowflake(datetime_obj=datetime.datetime.now())
-		return snakeflow
+		return discord.utils.time_snowflake(datetime_obj=datetime.datetime.now())
 
 	def captcha_bypass(token, url, key, captcha_rqdata):
 		capmonster = HCaptchaTask(config['capmonster_apikey'])
@@ -113,7 +111,13 @@ def send_dm(token_counter):
 	def check(token):
 		headers['x-fingerprint'] = request_fingerprint()
 		headers['authorization'] = token
-		response = requests.get(f"https://discord.com/api/v9/users/@me/guilds", headers=headers, cookies=request_cookie(), proxies=proxies, timeout=20)
+		response = requests.get(
+		    "https://discord.com/api/v9/users/@me/guilds",
+		    headers=headers,
+		    cookies=request_cookie(),
+		    proxies=proxies,
+		    timeout=20,
+		)
 		if config['server_id'] in response.text:
 			return True
 	
@@ -127,16 +131,14 @@ def send_dm(token_counter):
 
 	def sent_dm(id):
 		global dm_success
-		sent = open("data/dm_sent.txt", "a")
-		sent.write(id + "\n")
-		sent.close()
+		with open("data/dm_sent.txt", "a") as sent:
+			sent.write(id + "\n")
 		dm_success += 1
 
 	def fail_dm(id):
 		global dm_failed
-		fail = open("data/dm_fail.txt", "a")
-		fail.write(id + "\n")
-		fail.close()
+		with open("data/dm_fail.txt", "a") as fail:
+			fail.write(id + "\n")
 		dm_failed += 1
 
 	def open_channel(authorization, userID):
@@ -145,8 +147,7 @@ def send_dm(token_counter):
 		headers['authorization'] = authorization
 		headers['x-context-properties'] = "e30="
 		response3 = requests.post("https://discord.com/api/v9/users/@me/channels", headers=headers, cookies=request_cookie(), json=json_data, proxies=proxies, timeout=20).json()
-		channel = response3["id"]
-		return channel
+		return response3["id"]
 
 	def send_message(authorization, channel, msg, userID):
 		dateTimeObj = datetime.datetime.now()
@@ -155,8 +156,16 @@ def send_dm(token_counter):
 		json = {'content': msg["content"], 'nonce': snakeflow, 'tts': "false"}
 		headers['x-fingerprint'] = request_fingerprint()
 		headers['authorization'] = authorization
-		headers['referer'] = "https://discord.com/channels/@me/" + str(channel)
-		response4 = requests.post("https://discord.com/api/v9/channels/" + str(channel) + "/messages", headers=headers, cookies=request_cookie(), data=js.dumps(json).replace("<user>", f"<@{userID}>").replace("<id>", f"{userID}"), proxies=proxies, timeout=20)
+		headers['referer'] = f"https://discord.com/channels/@me/{str(channel)}"
+		response4 = requests.post(
+		    f"https://discord.com/api/v9/channels/{str(channel)}/messages",
+		    headers=headers,
+		    cookies=request_cookie(),
+		    data=js.dumps(json).replace("<user>", f"<@{userID}>").replace(
+		        "<id>", f"{userID}"),
+		    proxies=proxies,
+		    timeout=20,
+		)
 		if response4.status_code == 200:
 			print(f"{Fore.LIGHTGREEN_EX} [{timestampStr}] [SENT] {userID} {Fore.LIGHTBLACK_EX}({authorization[:36]}*****) {Fore.RESET}")
 			sent_dm(userID)
@@ -166,7 +175,15 @@ def send_dm(token_counter):
 		elif response4.status_code == 400:
 			print(f"{Fore.YELLOW} [{timestampStr}] [CAPTCHA] {response4.json()['captcha_sitekey']} {Fore.LIGHTBLACK_EX}({authorization[:36]}*****) {Fore.RESET}")
 			json2 = {'captcha_key': captcha_bypass(authorization, "https://discord.com", f"{response4.json()['captcha_sitekey']}", response4.json()['captcha_rqdata']), 'captcha_rqtoken': response4.json()['captcha_rqtoken'], 'content': msg["content"], 'nonce': snakeflow, 'tts': "false"}
-			response5 = requests.post("https://discord.com/api/v9/channels/" + str(channel) + "/messages", headers=headers, cookies=request_cookie(), data=js.dumps(json2).replace("<user>", f"<@{userID}>").replace("<id>", f"{userID}"), proxies=proxies, timeout=20)
+			response5 = requests.post(
+			    f"https://discord.com/api/v9/channels/{str(channel)}/messages",
+			    headers=headers,
+			    cookies=request_cookie(),
+			    data=js.dumps(json2).replace("<user>", f"<@{userID}>").replace(
+			        "<id>", f"{userID}"),
+			    proxies=proxies,
+			    timeout=20,
+			)
 			if response5.status_code == 200:
 				print(f"{Fore.LIGHTGREEN_EX} [{timestampStr}] [SENT] {userID}{Fore.LIGHTBLACK_EX}({authorization[:36]}*****) {Fore.RESET}")
 				sent_dm(userID)
@@ -183,7 +200,7 @@ def send_dm(token_counter):
 	def dm(token, userID, message):
 		
 		global tokens_left
-		
+
 		try:
 			if check(token):
 				channel = open_channel(token, userID)
@@ -193,9 +210,8 @@ def send_dm(token_counter):
 				dateTimeObj = datetime.datetime.now()
 				timestampStr = dateTimeObj.strftime("%H:%M:%S")
 				print(f"{Fore.RED} [{timestampStr}] [TOKEN REMOVED] ({token[:36]}*****){Fore.RESET}")
-				bad = open("data/bad_tokens.txt", 'a')
-				bad.write(token + "\n")
-				bad.close()
+				with open("data/bad_tokens.txt", 'a') as bad:
+					bad.write(token + "\n")
 				tokens_left = tokens_left - 1
 		except:
 			pass
@@ -229,7 +245,7 @@ def send_dm(token_counter):
 			print(err)
 			pass
 
-for i in range(len(tokens)):
+for _ in range(len(tokens)):
 	t = threading.Thread(target=send_dm, args=(token_counter,))
 	t.daemon = True
 	token_counter += 1
